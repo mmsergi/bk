@@ -1,0 +1,23 @@
+settings =
+{
+  orientation =
+  {
+    default = "portrait",
+    supported = { "portrait" }
+  },
+
+  android =
+  {
+    usesPermissions =
+    {
+      "android.permission.INTERNET",
+
+    },
+  },
+
+  plugins =
+  {    
+    ["plugin.google.play.services"] = {publisherId = "com.coronalabs"},
+
+  },  
+}
