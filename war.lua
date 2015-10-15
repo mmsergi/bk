@@ -3,28 +3,72 @@ local StickLib   = require("scripts.lib_analog_stick")
 local localGroup
 system.activate( "multitouch" )
 physics.start( )
-physics.setDrawMode( "hybrid" )
+--physics.setDrawMode( "hybrid" )
 physics.setGravity( 0, 0 )
+
+local scoreHero1 = 0
+local scoreHero2 = 0
+
+local randx
+local randy
 -- All code outside of the listener functions will only be executed ONCE unless "composer.removeScene()" is called.
 -- local forward references should go here
 
-local function checkGoldCollision(gold, char)
-    local incxpow = math.pow( gold.x - char.x, 2 ) 
-    local incypow = math.pow( gold.y - char.y, 2 ) 
+local function distance(obj1, obj2)
+    local incxpow = math.pow( obj1.x - obj2.x, 2 ) 
+    local incypow = math.pow( obj1.y - obj2.y, 2 ) 
     local d = math.sqrt(incxpow+incypow)
     return d
 end
 
+local function distancePointObj(x, y, obj2)
+    local incxpow = math.pow( x - obj2.x, 2 ) 
+    local incypow = math.pow( y - obj2.y, 2 ) 
+    local d = math.sqrt(incxpow+incypow)
+    return d
+end
+
+local function checkPos()
+    randx = math.random(_W)
+    randy = math.random(_H)
+    if (distancePointObj(randx, randy, hero1) > 120 and distancePointObj(randx, randy, hero2) > 120) then
+        return true
+    else
+        return false
+    end
+end
+
 -- Local collision handling
-local function onGoldCollision(gold, event)
-    if (event.other.id == "hero1") then
+local function onGoldCollision(self, event)
+    if (event.other.id == "hero1" and event.other.state==nil) then
+        speedHero1 = 1.5
         hero1.state = "goldOn"
         goldOnHero1 = display.newImage("images/gold.png", hero1.x, hero1.y - 10)  
-        gold:removeSelf( )     
-    elseif (event.other.id == "hero2") then
+        self:removeSelf( )     
+    elseif (event.other.id == "hero2" and event.other.state==nil) then
+        speedHero2 = 1.5
         hero2.state = "goldOn"      
         goldOnHero2 = display.newImage("images/gold.png", hero2.x, hero2.y - 10)
-        gold:removeSelf( )   
+        self:removeSelf( )   
+    end
+end
+
+local function onCastleCollision (self, event)
+    print ("collision "..self.id)
+    if (self.id=="castle1" and event.other.id=="hero1" and event.other.state=="goldOn") then
+        goldOnHero1:removeSelf( )
+        hero1.state=nil
+        print ("hero1 GOLD")
+        scoreHero1 = scoreHero1 + 1 
+        score1.text = scoreHero1
+        speedHero1 = 3
+    elseif (self.id=="castle2" and event.other.id=="hero2" and event.other.state=="goldOn") then
+        goldOnHero2:removeSelf( )
+        hero2.state=nil
+        print ("hero2 GOLD")
+        scoreHero2 = scoreHero2 + 1 
+        score2.text = scoreHero2
+        speedHero2 = 3
     end
 end
 
@@ -37,22 +81,25 @@ end
 
 -- Global collision handling
 local function onGlobalCollision( event )
-    if (event.object1.id=="hero1" and event.object2.id=="hero2") then
-        print("heros collision")
-        if (hero1.state=="goldOn" and hero2.state==nil) then
-            print("hero 2 attack")
-            goldOnHero1:removeSelf( )
-            hero1.state=nil
-            timer.performWithDelay(20, function() positionGold(hero1.x - 100, hero1.y) end)
-        elseif (hero1.state==nil and hero2.state=="goldOn") then
-            print("hero 1 attack")
-            goldOnHero2:removeSelf( )
-            hero2.state=nil
-            timer.performWithDelay(20, function() positionGold(hero2.x - 100, hero2.y) end)
+    if (event.phase == "began") then
+        if (event.object1.id=="hero1" and event.object2.id=="hero2") then
+            print("heros collision")
+            if (hero1.state=="goldOn" and hero2.state==nil) then
+                print("hero 2 attack")
+                goldOnHero1:removeSelf( )
+                hero1.state=nil
+                speedHero1 = 3
+                timer.performWithDelay(20, function() positionGold(hero1.x - 100, hero1.y) end)
+            elseif (hero1.state==nil and hero2.state=="goldOn") then
+                print("hero 1 attack")
+                goldOnHero2:removeSelf( )
+                hero2.state=nil
+                speedHero2 = 3
+                timer.performWithDelay(20, function() positionGold(hero2.x - 100, hero2.y) end)
+            end
         end
     end
 end
-
 
 local function frameUpdates ()
     if (goldOnHero1~=nil) then
@@ -67,14 +114,13 @@ end
 function scene:create( event )
     localGroup = self.view
     
-    local Text = display.newText( " ", _W*.6, _H-20, native.systemFont, 15 )
-
     -- local hero
     localGroup = display.newGroup() -- remember this for farther down in the code
-    motionx = 0; -- Variable used to move character along x axis
-    motiony = 0; -- Variable used to move character along y axis
-    speed = 2; -- Set Walking Speed 
-     
+    motionx = 0 -- Variable used to move character along x axis
+    motiony = 0 -- Variable used to move character along y axis
+    speedHero1 = 3 -- Set Walking Speed 
+    speedHero2 = 3
+
     -- CREATE ANALOG STICK
     MyStick = StickLib.NewStick( 
             {
@@ -104,9 +150,9 @@ function scene:create( event )
     local function main( event )
             
         -- MOVE THE SHIP
-        MyStick:move(hero1, speed, false) -- se a opção for true o objeto se move com o joystick
+        MyStick:move(hero1, speedHero1, false) -- se a opção for true o objeto se move com o joystick
 
-        MyStick2:move(hero2, speed, false) -- se a opção for true o objeto se move com o joystick
+        MyStick2:move(hero2, speedHero2, false) -- se a opção for true o objeto se move com o joystick
 
         -- -- SHOW STICK INFO
         -- Text.text = "ANGLE = "..MyStick:getAngle().."   DIST = "..math.ceil(MyStick:getDistance()).."   PERCENT = "..math.ceil(MyStick:getPercent()*100).."%"
@@ -172,9 +218,11 @@ function scene:create( event )
         end
         
     end
+
      timer.performWithDelay(2000, function()
      --MyStick:delete()
      end, 1)
+
     Runtime:addEventListener( "enterFrame", main )    
 
     local bg = display.newImage(localGroup,"images/background.png")
@@ -185,22 +233,31 @@ function scene:create( event )
     hero1 = display.newSprite(localGroup, mySheet, sequenceData)
     hero1:setSequence("forward")
     hero1.x = cx
-    hero1.y = cy + 30
+    hero1.y = cy + 70
     hero1.id = "hero1"
     physics.addBody( hero1, { density=1.0, friction=0.3, bounce=0.2, radius=25 } )
 
     hero2 = display.newSprite(localGroup, mySheet, sequenceData)
     hero2:setSequence("back")
     hero2.x = cx
-    hero2.y = cy - 30
+    hero2.y = cy - 70
     hero2.id = "hero2"
     physics.addBody( hero2, { density=1.0, friction=0.3, bounce=0.2, radius=25 } )
 
-    gold = display.newImage(localGroup, "images/gold.png", cx, cy + 120 )
-    physics.addBody( gold )
-    gold.collision = onGoldCollision
-    gold:addEventListener( "collision", gold )
+    castle = display.newRect(localGroup, rightMarg, bottomMarg, 80, 80 )
+    physics.addBody( castle, "static")
+    castle.id="castle1"
+    castle.collision = onCastleCollision
+    castle:addEventListener( "collision", castle )
 
+    castle2 = display.newRect(localGroup, leftMarg, topMarg, 80, 80 )
+    physics.addBody( castle2, "static")
+    castle2.id="castle2"
+    castle2.collision = onCastleCollision
+    castle2:addEventListener( "collision", castle2 )
+
+    score1 = display.newText( localGroup, scoreHero1, leftMarg + 30, bottomMarg - 30 )
+    score2 = display.newText( localGroup, scoreHero2, rightMarg - 30, topMarg + 30 )
 
 end-- "scene:create()"
 
@@ -220,6 +277,15 @@ function scene:show( event )
         -- Example: start timers, begin animation, play audio, etc.
         Runtime:addEventListener( "enterFrame", frameUpdates )
         Runtime:addEventListener( "collision", onGlobalCollision )
+        timer.performWithDelay( 4000, 
+            function () 
+                while (checkPos()==false) do 
+                    checkPos() 
+                end 
+                positionGold(randx, randy) 
+                print(randx.."   "..randy)
+            end
+        , 0)
     end-- "scene:show()"
 end-- "scene:show()"
 
@@ -251,7 +317,6 @@ function scene:destroy( event )
 
 
 end-- "scene:destroy()"
-
 
 ---------------------------------------------------------------------------------
 
