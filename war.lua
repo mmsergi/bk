@@ -30,8 +30,8 @@ end
 
 local function checkPos()
     randx = math.random(_W)
-    randy = math.random(_H)
-    if (distancePointObj(randx, randy, hero1) > 120 and distancePointObj(randx, randy, hero2) > 120) then
+    randy = _H*20/100 + math.random(_H - _H*40/100)
+    if (distancePointObj(randx, randy, hero1) > 50 and distancePointObj(randx, randy, hero2) > 50) then
         return true
     else
         return false
@@ -124,7 +124,7 @@ function scene:create( event )
     -- CREATE ANALOG STICK
     MyStick = StickLib.NewStick( 
             {
-            x             = cx,
+            x             = rightMarg-50,
             y             = bottomMarg-50,
             thumbSize     = 16,
             borderSize    = 32, 
@@ -136,8 +136,8 @@ function scene:create( event )
 
     MyStick2 = StickLib.NewStick( 
             {
-            x             = cx,
-            y             = topMarg + 50,
+            x             = leftMarg+50,
+            y             = topMarg+50,
             thumbSize     = 16,
             borderSize    = 32, 
             snapBackSpeed = .2, 
@@ -244,20 +244,22 @@ function scene:create( event )
     hero2.id = "hero2"
     physics.addBody( hero2, { density=1.0, friction=0.3, bounce=0.2, radius=25 } )
 
-    castle = display.newRect(localGroup, rightMarg, bottomMarg, 80, 80 )
+    castle = display.newRect(localGroup, leftMarg, bottomMarg, 80, 80 )
     physics.addBody( castle, "static")
     castle.id="castle1"
     castle.collision = onCastleCollision
     castle:addEventListener( "collision", castle )
 
-    castle2 = display.newRect(localGroup, leftMarg, topMarg, 80, 80 )
+    castle2 = display.newRect(localGroup, rightMarg, topMarg, 80, 80 )
     physics.addBody( castle2, "static")
     castle2.id="castle2"
     castle2.collision = onCastleCollision
     castle2:addEventListener( "collision", castle2 )
 
     score1 = display.newText( localGroup, scoreHero1, leftMarg + 30, bottomMarg - 30 )
+    score1:setFillColor( black )
     score2 = display.newText( localGroup, scoreHero2, rightMarg - 30, topMarg + 30 )
+    score2:setFillColor( black )
 
 end-- "scene:create()"
 
@@ -277,7 +279,7 @@ function scene:show( event )
         -- Example: start timers, begin animation, play audio, etc.
         Runtime:addEventListener( "enterFrame", frameUpdates )
         Runtime:addEventListener( "collision", onGlobalCollision )
-        timer.performWithDelay( 4000, 
+        timer.performWithDelay( 100, 
             function () 
                 while (checkPos()==false) do 
                     checkPos() 
