@@ -3,11 +3,14 @@ local StickLib   = require("scripts.lib_analog_stick")
 local localGroup
 system.activate( "multitouch" )
 physics.start( )
---physics.setDrawMode( "hybrid" )
+physics.setDrawMode( "hybrid" )
 physics.setGravity( 0, 0 )
 
 local scoreHero1 = 0
 local scoreHero2 = 0
+
+local normalSpeed = 7
+local goldSpeed = 5
 
 local randx
 local randy
@@ -30,8 +33,8 @@ end
 
 local function checkPos()
     randx = math.random(_W)
-    randy = _H*20/100 + math.random(_H - _H*40/100)
-    if (distancePointObj(randx, randy, hero1) > 50 and distancePointObj(randx, randy, hero2) > 50) then
+    randy = _H*40/100 + math.random(_H - _H*80/100)
+    if (distancePointObj(randx, randy, hero1) > 128 and distancePointObj(randx, randy, hero2) > 128) then
         return true
     else
         return false
@@ -41,12 +44,12 @@ end
 -- Local collision handling
 local function onGoldCollision(self, event)
     if (event.other.id == "hero1" and event.other.state==nil) then
-        speedHero1 = 1.5
+        speedHero1 = goldSpeed
         hero1.state = "goldOn"
         goldOnHero1 = display.newImage("images/gold.png", hero1.x, hero1.y - 10)  
         self:removeSelf( )     
     elseif (event.other.id == "hero2" and event.other.state==nil) then
-        speedHero2 = 1.5
+        speedHero2 = goldSpeed
         hero2.state = "goldOn"      
         goldOnHero2 = display.newImage("images/gold.png", hero2.x, hero2.y - 10)
         self:removeSelf( )   
@@ -61,20 +64,20 @@ local function onCastleCollision (self, event)
         print ("hero1 GOLD")
         scoreHero1 = scoreHero1 + 1 
         score1.text = scoreHero1
-        speedHero1 = 3
+        speedHero1 = normalSpeed
     elseif (self.id=="castle2" and event.other.id=="hero2" and event.other.state=="goldOn") then
         goldOnHero2:removeSelf( )
         hero2.state=nil
         print ("hero2 GOLD")
         scoreHero2 = scoreHero2 + 1 
         score2.text = scoreHero2
-        speedHero2 = 3
+        speedHero2 = normalSpeed
     end
 end
 
 local function positionGold(posX, posY)
     gold = display.newImage("images/gold.png", posX, posY)
-    physics.addBody( gold )
+    physics.addBody( gold, {radius=40} )
     gold.collision = onGoldCollision
     gold:addEventListener( "collision", gold )
 end
@@ -83,19 +86,30 @@ end
 local function onGlobalCollision( event )
     if (event.phase == "began") then
         if (event.object1.id=="hero1" and event.object2.id=="hero2") then
+            if (math.random()>0.5) then 
+                inc = 200
+            else 
+                inc = -200
+            end
             print("heros collision")
             if (hero1.state=="goldOn" and hero2.state==nil) then
                 print("hero 2 attack")
                 goldOnHero1:removeSelf( )
                 hero1.state=nil
-                speedHero1 = 3
-                timer.performWithDelay(20, function() positionGold(hero1.x - 100, hero1.y) end)
+                speedHero1 = normalSpeed
+                speedHero2 = goldSpeed
+                hero2.state = "goldOn"      
+                goldOnHero2 = display.newImage("images/gold.png", hero2.x, hero2.y - 10)
+                --timer.performWithDelay(20, function() positionGold(hero1.x + inc, hero1.y) end)
             elseif (hero1.state==nil and hero2.state=="goldOn") then
                 print("hero 1 attack")
                 goldOnHero2:removeSelf( )
                 hero2.state=nil
-                speedHero2 = 3
-                timer.performWithDelay(20, function() positionGold(hero2.x - 100, hero2.y) end)
+                speedHero2 = normalSpeed
+                speedHero1 = goldSpeed
+                hero1.state = "goldOn"      
+                goldOnHero1 = display.newImage("images/gold.png", hero1.x, hero1.y - 10)
+                --timer.performWithDelay(20, function() positionGold(hero2.x + inc, hero2.y) end)
             end
         end
     end
@@ -109,6 +123,10 @@ local function frameUpdates ()
     if (goldOnHero2~=nil) then
         goldOnHero2.x, goldOnHero2.y = hero2.x, hero2.y - 10
     end
+
+    if scoreHero1 > 4 or scoreHero2 > 4 then
+        composer.gotoScene("menu")
+    end
 end
         
 function scene:create( event )
@@ -118,15 +136,15 @@ function scene:create( event )
     localGroup = display.newGroup() -- remember this for farther down in the code
     motionx = 0 -- Variable used to move character along x axis
     motiony = 0 -- Variable used to move character along y axis
-    speedHero1 = 3 -- Set Walking Speed 
-    speedHero2 = 3
+    speedHero1 = normalSpeed -- Set Walking Speed 
+    speedHero2 = normalSpeed
 
     -- CREATE ANALOG STICK
     MyStick = StickLib.NewStick( 
             {
-            x             = rightMarg-50,
-            y             = bottomMarg-50,
-            thumbSize     = 16,
+            x             = rightMarg-_W*20/100,
+            y             = bottomMarg-_H*12.5/100,
+            thumbSize     = 32,
             borderSize    = 32, 
             snapBackSpeed = .2, 
             R             = 255,
@@ -136,9 +154,9 @@ function scene:create( event )
 
     MyStick2 = StickLib.NewStick( 
             {
-            x             = leftMarg+50,
-            y             = topMarg+50,
-            thumbSize     = 16,
+            x             = leftMarg+_W*20/100,
+            y             = topMarg+_H*12.5/100,
+            thumbSize     = 32,
             borderSize    = 32, 
             snapBackSpeed = .2, 
             R             = 255,
@@ -235,22 +253,22 @@ function scene:create( event )
     hero1.x = cx
     hero1.y = cy + 70
     hero1.id = "hero1"
-    physics.addBody( hero1, { density=1.0, friction=0.3, bounce=0.2, radius=25 } )
+    physics.addBody( hero1, { density=0.5, friction=0, bounce=0.2, radius=70 } )
 
     hero2 = display.newSprite(localGroup, mySheet, sequenceData)
     hero2:setSequence("back")
     hero2.x = cx
     hero2.y = cy - 70
     hero2.id = "hero2"
-    physics.addBody( hero2, { density=1.0, friction=0.3, bounce=0.2, radius=25 } )
+    physics.addBody( hero2, { density=0.5, friction=0, bounce=0.2, radius=70 } )
 
-    castle = display.newRect(localGroup, leftMarg, bottomMarg, 80, 80 )
+    castle = display.newRect(localGroup, leftMarg, bottomMarg, 200, 200 )
     physics.addBody( castle, "static")
     castle.id="castle1"
     castle.collision = onCastleCollision
     castle:addEventListener( "collision", castle )
 
-    castle2 = display.newRect(localGroup, rightMarg, topMarg, 80, 80 )
+    castle2 = display.newRect(localGroup, rightMarg, topMarg, 200, 200 )
     physics.addBody( castle2, "static")
     castle2.id="castle2"
     castle2.collision = onCastleCollision

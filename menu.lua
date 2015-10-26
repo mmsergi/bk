@@ -28,6 +28,29 @@ function scene:show( event )
         -- Insert code here to make the scene come alive.
         -- Example: start timers, begin animation, play audio, etc.
 
+        local bg = display.newImage(group, "images/background.png")
+		bg.x, bg.y = cx, cy
+		
+        playSingleBtn = widget.newButton{
+			defaultFile="images/button.png",
+            height = 150,
+            width = 150,
+            onRelease = function () composer.gotoScene("warsingle") end
+		}
+
+		playSingleBtn.x, playSingleBtn.y = cx, cy 
+
+		playMultiBtn = widget.newButton{
+			defaultFile="images/button.png",
+            height = 150,
+            width = 150,
+            onRelease = function () composer.gotoScene("war") end
+		}
+
+		playMultiBtn.x, playMultiBtn.y = cx, cy + 200
+
+		group:insert(playSingleBtn)
+		group:insert(playMultiBtn)
 
     end-- "scene:show()"
 end-- "scene:show()"

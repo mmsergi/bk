@@ -55,11 +55,11 @@ Runtime:addEventListener( "system", onSystemEvent )
 
 --Declare and set up Sprite Image Sheet and sequence data
 spriteOptions = {   
-    height = 64, 
-    width = 64, 
+    height = 256, 
+    width = 256, 
     numFrames = 273, 
-    sheetContentWidth = 832, 
-    sheetContentHeight = 1344 
+    sheetContentWidth = 3328, 
+    sheetContentHeight = 5376 
 }
 mySheet = graphics.newImageSheet("images/rectSmall.png", spriteOptions) 
 sequenceData = {
@@ -74,4 +74,5 @@ sequenceData = {
     {name = "death", frames={261,262,263,264,265,266}, time = 500, loopCount = 1}
 }   
 
-composer.gotoScene("war")
+--composer.gotoScene("war")
+composer.gotoScene("menu")

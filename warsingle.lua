@@ -1,40 +1,165 @@
 local scene = composer.newScene()
 local StickLib   = require("scripts.lib_analog_stick")
-system.activate( "multitouch" )
+local localGroup
 -- All code outside of the listener functions will only be executed ONCE unless "composer.removeScene()" is called.
 -- local forward references should go here
+physics.start( )
+physics.setDrawMode( "hybrid" )
+physics.setGravity( 0, 0 )
 
-function scene:create( event )
+local scoreHero = 0
 
-local localGroup = self.view
+local normalSpeed = 7
+local goldSpeed = 5
 
-local Text = display.newText( " ", _W*.6, _H-20, native.systemFont, 15 )
+local vx = 5
+local vy = 5
 
--- local hero
-local localGroup = display.newGroup() -- remember this for farther down in the code
-motionx = 0; -- Variable used to move character along x axis
-motiony = 0; -- Variable used to move character along y axis
-speed = 2; -- Set Walking Speed 
+local randx
+local randy
+
+local function distanceenemyObj(x, y, obj2)
+    local incxpow = math.pow( x - obj2.x, 2 ) 
+    local incypow = math.pow( y - obj2.y, 2 )
+    local d = math.sqrt(incxpow+incypow)
+    return d
+end
+
+local function checkPos()
+    randx = math.random(_W)
+    randy = _H/10 + math.random(_H - _H*50/100)
+    if (distanceenemyObj(randx, randy, hero) > hero.height/2) then
+        return true
+    else
+        return false
+    end
+end
+
+-- Local collision handling
+local function onGoldCollision(self, event)
+    if (event.other.id == "hero" and event.other.state==nil) then
+        speedhero = goldSpeed
+        hero.state = "goldOn"
+        goldOnhero = display.newImage("images/gold.png", hero.x, hero.y - 10)  
+        self:removeSelf( )      
+    end
+end
+
+local function onCastleCollision (self, event)
+    print ("collision "..self.id)
+    if (self.id=="castle1" and event.other.id=="hero" and event.other.state=="goldOn") then
+        goldOnhero:removeSelf( )
+        hero.state=nil
+        print ("hero GOLD")
+        scoreHero = scoreHero + 1 
+        score.text = scoreHero
+        speedhero = normalSpeed
+    end
+end
+
+local function positionGold(posX, posY)
+    gold = display.newImage(localGroup, "images/gold.png", posX, posY)
+    gold.rotation = math.random(0, 360)
+    physics.addBody( gold, {radius=gold.width/2} )
+    gold.collision = onGoldCollision
+    gold:addEventListener( "collision", gold )
+    localGroup:insert( gold )
+end
+
+local function shotFire()
+    if (math.random()>.5) then
+        fire = display.newImage(localGroup, "images/fire.png", -_W/5, math.random(_H*10/100, _H*80/100))
+        fire.rotation = -90
+        physics.addBody( fire )
+        fire:setLinearVelocity( 200, 0 )
+    else
+        fire = display.newImage(localGroup, "images/fire.png", _W +_W/5, math.random(_H*10/100, _H*80/100))
+        fire.rotation = 90
+        physics.addBody( fire )
+        fire:setLinearVelocity( -200, 0 )
+    end
+end
+
+-- Global collision handling
+local function onGlobalCollision( event )
+    if (event.phase == "began") then
+        if (event.object1.id=="hero" and event.object2.id=="hero2") then
+            print("heros collision")
+            if (hero.state=="goldOn" and hero2.state==nil) then
+                print("hero 2 attack")
+                goldOnhero:removeSelf( )
+                hero.state=nil
+                speedhero = normalSpeed
+                timer.performWithDelay(20, function() positionGold(hero.x - 100, hero.y) end)
+            elseif (hero.state==nil and hero2.state=="goldOn") then
+                print("hero 1 attack")
+                goldOnHero2:removeSelf( )
+                hero2.state=nil
+                speedHero2 = normalSpeed
+                timer.performWithDelay(20, function() positionGold(hero2.x - 100, hero2.y) end)
+            end
+        end
+    end
+end
+
+local function frameUpdates ()
+
+    if (goldOnhero~=nil) then
+        goldOnhero.x, goldOnhero.y = hero.x, hero.y - 10
+    end
+
+    if (goldOnHero2~=nil) then
+        goldOnHero2.x, goldOnHero2.y = hero2.x, hero2.y - 10
+    end
+
+    --[[ ENEMY CHASER
+    local distanceX = hero.x - enemy.x
+    local distanceY = hero.y - enemy.y
  
--- CREATE ANALOG STICK
-MyStick = StickLib.NewStick( 
-        {
-        x             = leftMarg+50,
-        y             = bottomMarg-50,
-        thumbSize     = 32,
-        borderSize    = 32, 
-        snapBackSpeed = .2, 
-        R             = 255,
-        G             = 255,
-        B             = 255
-        } )
+    local angleRadians = math.atan2(distanceY, distanceX)
+    local angleDegrees = math.deg(angleRadians)
+ 
+    local enemySpeed = 5
+ 
+    local enemyMoveDistanceX = enemySpeed*math.cos(angleDegrees)
+    local enemyMoveDistanceY = enemySpeed*math.sin(angleDegrees)
+ 
+    enemy.x = enemy.x + enemyMoveDistanceX
+    enemy.y = enemy.y + enemyMoveDistanceY
+    ]]
 
- -- MAIN LOOP
-----------------------------------------------------------------
-local function main( event )
+    enemy.x = enemy.x + vx
+    enemy.y = enemy.y + vy
+    
+    if enemy.x > _W or enemy.x < 0 then 
+        vx = vx*-1
+    end
+
+    if enemy.y > _H - _H*20/100 or enemy.y < 0 then 
+        vy = vy*-1
+    end
+
+    if scoreHero > 0 then
+        print("entra")
+        Runtime:removeEventListener( "enterFrame", frameUpdates )
+        Runtime:removeEventListener( "collision", onGlobalCollision )
+        Runtime:removeEventListener( "enterFrame", stickMove )  
+        timer.cancel( timer1 )
+        timer.cancel( timer2 )
+        composer.removeScene( "warsingle" )
+        composer.gotoScene("menu")
+        physics.removeBody( gold )
+        physics.removeBody( fire )
+        physics.removeBody( hero )
+        physics.removeBody( enemy )
+    end
+    
+end
+
+local function stickMove( event )
         
     -- MOVE THE SHIP
-    MyStick:move(hero, speed, false) -- se a opção for true o objeto se move com o joystick
+    MyStick:move(hero, normalSpeed, false) -- se a opção for true o objeto se move com o joystick
 
     -- -- SHOW STICK INFO
     -- Text.text = "ANGLE = "..MyStick:getAngle().."   DIST = "..math.ceil(MyStick:getDistance()).."   PERCENT = "..math.ceil(MyStick:getPercent()*100).."%"
@@ -44,7 +169,7 @@ local function main( event )
     -- print("MyStick:getPercent = "..MyStick:getPercent()*100)
     --print("POSICAO X / Y  " ..hero.x,hero.y)
     
-    angle = MyStick:getAngle() 
+    angle = MyStick:getAngle()
     moving = MyStick:getMoving()
 
     --Determine which animation to play based on the direction of the analog stick  
@@ -74,81 +199,108 @@ local function main( event )
     end
     
 end
- timer.performWithDelay(2000, function()
- --MyStick:delete()
- end, 1)
-Runtime:addEventListener( "enterFrame", main )
- 
- --Declare and set up Sprite Image Sheet and sequence data
-    spriteOptions = {   
-        height = 64, 
-        width = 64, 
-        numFrames = 273, 
-        sheetContentWidth = 832, 
-        sheetContentHeight = 1344 
-    }
-    mySheet = graphics.newImageSheet("images/rectSmall.png", spriteOptions) 
-    sequenceData = {
-        {name = "forward", frames={105,106,107,108,109,110,111,112}, time = 500, loopCount = 1},
-        {name = "right", frames={144,145,146,147,148,149,150,151,152}, time = 500, loopCount = 1}, 
-        {name = "back", frames= {131,132,133,134,135,136,137,138,139}, time = 500, loopCount = 1}, 
-        {name = "left", frames={118,119,120,121,122,123,124,125,126}, time = 500, loopCount = 1},
-        {name = "attackForward", frames={157,158,159,160,161,162,157}, time = 400, loopCount = 1},
-        {name = "attackRight", frames={196,197,198,199,200,201,196}, time = 400, loopCount = 1},
-        {name = "attackBack", frames={183,184,185,186,187,188,183}, time = 400, loopCount = 1},
-        {name = "attackLeft", frames={170,171,172,173,174,175,170}, time = 400, loopCount = 1},
-        {name = "death", frames={261,262,263,264,265,266}, time = 500, loopCount = 1}
-    }   
-    
 
+function scene:create( event )
 
-local bg = display.newImage(localGroup,"images/background.png")
-bg.x = cx
-bg.y = cy
+    localGroup = self.view
 
+    -- local hero
+    -- local localGroup = display.newGroup() -- remember this for farther down in the code
+    motionx = 0; -- Variable used to move character along x axis
+    motiony = 0; -- Variable used to move character along y axis
+     
+    -- CREATE ANALOG STICK
+    if MyStick==nil then
+        MyStick = StickLib.NewStick( 
+            {
+            x             = rightMarg-150,
+            y             = bottomMarg-150,
+            thumbSize     = 32,
+            borderSize    = 32, 
+            snapBackSpeed = .2, 
+            R             = 255,
+            G             = 255,
+            B             = 255
+            } )
+    end
 
--- Display the new sprite at the coordinates passed
-hero = display.newSprite(mySheet, sequenceData)
-hero:setSequence("forward")
-hero.x = cx
-hero.y = cy
+     -- MAIN LOOP
+    ----------------------------------------------------------------
 
+    Runtime:addEventListener( "enterFrame", stickMove )    
 
-localGroup:insert(bg)
-localGroup:insert(hero)
+    bg = display.newImage(localGroup, "images/background.png")
+    bg.x = cx
+    bg.y = cy
 
+    -- Display the new sprite at the coordinates passed
+    hero = display.newSprite(localGroup, mySheet, sequenceData)
+    hero:setSequence("forward")
+    hero.id = "hero"
+    hero.x = cx
+    hero.y = cy
+    physics.addBody( hero, { density=0.5, friction=0, bounce=0.2, radius=70 } )
+
+    -- Display the new sprite at the coordinates passed
+    enemy = display.newSprite(localGroup, mySheet, sequenceData)
+    enemy:setSequence("forward")
+    enemy.id = "enemy"
+    enemy.x = cx
+    enemy.y = cy - 500
+    physics.addBody( enemy, { density=0.5, friction=0, bounce=0.2, radius=70 } )
+
+    castle = display.newRect(localGroup, leftMarg, bottomMarg, 350, 350 )
+    physics.addBody( castle, "static")
+    castle.id = "castle1"
+    castle.collision = onCastleCollision
+    castle:addEventListener( "collision", castle )
+
+    score = display.newText( localGroup, scoreHero, leftMarg + 30, bottomMarg - 30 )
+    score:setFillColor( black )
 
 end-- "scene:create()"
 
 function scene:show( event )
 
-    local localGroup = self.view
+    localGroup = self.view
     local phase = event.phase
 
     if ( phase == "will" ) then
         -- Called when the scene is still off screen (but is about to come on screen).
-
 
     elseif ( phase == "did" ) then
         -- Called when the scene is now on screen.
         -- Insert code here to make the scene come alive.
         -- Example: start timers, begin animation, play audio, etc.
 
+        Runtime:addEventListener( "enterFrame", frameUpdates )
+        Runtime:addEventListener( "collision", onGlobalCollision )
+
+        timer1 = timer.performWithDelay( 5000, 
+            function () 
+                while (checkPos()==false) do 
+                    checkPos() 
+                end 
+                positionGold(randx, randy) 
+                print(randx.."   "..randy)
+            end
+        , 0)
+
+        timer2 = timer.performWithDelay( 1000, shotFire, 0 )
 
     end-- "scene:show()"
 end-- "scene:show()"
 
-
-
 function scene:hide( event )
 
-    local localGroup = self.view
+    localGroup = self.view
     local phase = event.phase
 
     if ( phase == "will" ) then
         -- Called when the scene is on screen (but is about to go off screen).
         -- Insert code here to "pause" the scene.
         -- Example: stop timers, stop animation, stop audio, etc.
+
 
     elseif ( phase == "did" ) then
         -- Called immediately after scene goes off screen.
@@ -157,10 +309,9 @@ function scene:hide( event )
 end-- "scene:hide()"
 
 
-
 function scene:destroy( event )
 
-    local localGroup = self.view
+    localGroup = self.view
 
     -- Called prior to the removal of scene's view ("localGroup").
     -- Insert code here to clean up the scene.
@@ -169,9 +320,7 @@ function scene:destroy( event )
 
 end-- "scene:destroy()"
 
-
--- -------------------------------------------------------------------------------
-
+-- ------------------------------------------------------------------------------
 
 scene:addEventListener( "create", scene )
 scene:addEventListener( "show", scene )
